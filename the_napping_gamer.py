@@ -1,0 +1,335 @@
+#!/usr/bin/env python3
+
+# Copyright 2015 Gustavo Laboreiro
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+#     Unless required by applicable law or agreed to in writing, software
+#     distributed under the License is distributed on an "AS IS" BASIS,
+#     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#     See the License for the specific language governing permissions and
+#     limitations under the License.
+
+import time
+import urllib.request
+import json
+import os
+import sys
+
+
+# We only need to configure the currency used and your country, due
+# to regional prices. Not all combinations are available from our
+# data source.
+
+# First we will set the currency. Chose one of the following:
+#
+#  'AUD', 'EUR', 'GBP', 'RUB', 'USD'
+
+currency_code = 'EUR'
+
+
+# Next, what is your country two letters code?
+# Possible values are:
+#
+#  'AD', 'AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AM', 'AN', 'AO', 'AR', 'AS',
+#  'AT', 'AT', 'AU', 'AU', 'AW', 'AZ', 'AZ', 'BA', 'BB', 'BD', 'BE', 'BE', 'BF',
+#  'BG', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BR', 'BS', 'BT', 'BW',
+#  'BY', 'BY', 'BZ', 'CA', 'CC', 'CD', 'CF', 'CH', 'CH', 'CI', 'CK', 'CL', 'CM',
+#  'CN', 'CO', 'CP', 'CR', 'CU', 'CV', 'CX', 'CY', 'CY', 'CZ', 'CZ', 'DE', 'DE',
+#  'DJ', 'DK', 'DK', 'DM', 'DO', 'DZ', 'EC', 'EE', 'EE', 'EG', 'EH', 'ER', 'ES',
+#  'ES', 'ET', 'FI', 'FI', 'FJ', 'FK', 'FM', 'FO', 'FR', 'FR', 'GA', 'GB', 'GB',
+#  'GD', 'GE', 'GF', 'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GR',
+#  'GT', 'GU', 'GW', 'GY', 'HK', 'HN', 'HR', 'HR', 'HT', 'HU', 'HU', 'ID', 'IE',
+#  'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IS', 'IT', 'IT', 'JE', 'JM',
+#  'JO', 'JP', 'KE', 'KG', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY',
+#  'KZ', 'KZ', 'LA', 'LB', 'LC', 'LI', 'LI', 'LK', 'LR', 'LS', 'LT', 'LT', 'LU',
+#  'LU', 'LV', 'LV', 'LY', 'MA', 'MC', 'MC', 'MD', 'MD', 'ME', 'ME', 'MF', 'MG',
+#  'MH', 'MK', 'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MT', 'MU',
+#  'MV', 'MW', 'MX', 'MY', 'MZ', 'NA', 'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NL',
+#  'NO', 'NO', 'NP', 'NR', 'NU', 'NZ', 'NZ', 'OM', 'PA', 'PE', 'PF', 'PG', 'PH',
+#  'PK', 'PL', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PT', 'PW', 'PY', 'QA', 'RE',
+#  'RO', 'RO', 'RS', 'RS', 'RU', 'RU', 'RW', 'SA', 'SB', 'SC', 'SD', 'SE', 'SE',
+#  'SG', 'SH', 'SI', 'SI', 'SK', 'SK', 'SL', 'SM', 'SM', 'SN', 'SO', 'SR', 'ST',
+#  'SV', 'SY', 'SZ', 'TC', 'TD', 'TG', 'TH', 'TJ', 'TJ', 'TK', 'TL', 'TM', 'TM',
+#  'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ', 'UA', 'UG', 'UM', 'US', 'UY', 'UZ',
+#  'UZ', 'VA', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'XK', 'YE',
+#  'YT', 'ZA', 'ZM', 'ZW',
+# 
+# If you cannot find your contry here, use GOG's code 'REST'.
+
+country_code = 'PT'
+
+
+# There is no need to change the rest of the code if you do not want to.
+
+
+# This is the URL to GOG's "API".
+
+url = "http://www.gog.com/doublesomnia/getdeals"
+
+
+# Initial polling interval in seconds. This will be reduced when apropriate
+# (e.g. a game pool is almost depleted it will reduce drasticaly).
+
+sleep_time = 20
+
+
+# Data about the games we already saw will be remembered.
+# When we see a game, we store its information in here.
+
+seen_games = dict()
+
+
+
+# This function provides the user notification for a new game just seen.
+# A new process will be initiated, like a browser window, a music player or
+# a desktop notification tool.
+# One could also have the program just beep here and not fork.
+# We pass along the information regarding the new game, incluing its GOG URL.
+
+def provide_notification(game_info):
+  "Notify the user that a new game is available in promotion."
+
+  pid = os.fork()
+  if pid == 0:
+    current_time = time.strftime("%H:%M",time.localtime())
+    title = "GOG  {}".format(current_time)
+    msg_format = '{title}<br>{local_discount_price:.2f} (-{price_discount:d}%)'\
+        '  {stock_left:d}/{total_stock:d}<br><a href="{url}">{url}</a>'
+    msg_text = msg_format.format_map(game_info)
+    os.execl("/usr/bin/notify-send", "nofify-send", "--expire-time=10000", title, msg_text)
+
+
+
+# Read the contents of the file at the URL provided. 
+# If there is some communication difficulty, we retry once.
+# The URL we are probing contains JSON data regarding the games on promotion.
+# We return the parsed data as a Python object.
+
+def read_from_url(url):
+  "Read the JSON object stored at the URL provided."
+
+  retry_wait_time = 5  # Retry after these many seconds on error.
+  try:
+    indata = urllib.request.urlopen(url)
+  except urllib.error.HTTPError:
+    time.sleep(retry_wait_time)
+    print("Network hickup.", file=sys.stderr)
+    indata = urllib.request.urlopen(url)
+  bytes_data = indata.read()
+  json_data = json.loads(bytes_data.decode())
+  return json_data
+
+
+
+# GOG stores the information about the game promotion in a structure containing
+# lots of information that we need to parse (e.g. new price and discounted price),
+# as well as prices in all currencies and countries.
+# We parse this information, convert most of it to numbers and discard what is
+# not needed.
+
+def extract_game_data(data):
+  "Parse GOG's data structure and return a simple unnested dictionary."
+
+  # GOG uses a somewhat complex structure to handle prices, since it deals with
+  # both regional prices and multiple currencies. Some currencies are considered
+  # in multiple countries, and some countries allow for the use of multiple
+  # currencies.
+  # Furthermore, this is not fixed. One game may display a price in USD for
+  # Europe while another one may have only EUR.
+
+  # For the sake of efficiency, we should start by looking at the currency data,
+  # as they provide lesse options. However, since it is easier for a user to
+  # change their currency used than their location, we will work on the country
+  # first and then work our way with the monetary unit.
+
+  # We will not support alternate currencies in here, but doing it this way
+  # makes this addition simpler to write.
+
+  # GOG's prices are in a structure as follows:
+  # {... "prices": {
+  #       "c": {"3": <COUNTRY_LIST_3>, "1": <COUNTRY_LIST_1>, ...},
+  #       "p": {"GBP": {"4":"1.39,6.69"}, "USD": {"3": "2.29,12.69",...} ... }
+  #
+  # <COUNTRY_LIST> means a list of country codes seperated by comma (as in
+  # "DK,EE,FI,FR,DE,GR,HU,IS,IE,IT,LV,LI,LT,LU,MT,MC,M").
+  # We can also see that the discounted price and full price are also comma
+  # seperated. The keys "c" and "p" most likely stand for "country" and "price".
+
+  # We will first see what number groups our country belongs to. If we find
+  # none, we will return the group for "REST".
+
+
+  def get_country_groups(price_data, title):
+    "Based on the country data for the current game from GOG, get the number\
+groups where it belongs. The title is used only for error messages."
+
+    backup_value = None
+    for key, values in price_data.items():
+      countries_in_group = values.split(",")
+      if country_code in countries_in_group:
+        yield key
+      elif "REST" in countries_in_group:
+        backup_value = key
+    else: 
+      # We exausted the list of countries and did not find the code.
+      # We'll use "REST" if we saw it.
+      if backup_value is None:
+        raise ValueError('Price index for "{}" not found for country "{}"' \
+            ' or for the rest of the world).'.format(title, country_code))
+      else:
+        return backup_value
+
+
+  # The second step to get the current price for the game is to look for it
+  # within the currency data.
+  # It is possible that a game costs X USD in one country and Y USD in another.
+  # Once we know which number groups our country integrates, we'll look only at
+  # them.
+
+  def get_price_value(price_data, title):
+    "From the GOG price data structure, extract only the prices matching the \
+globally defined country and currency. Returns the tuple (discounted, full)."
+
+    relevant_data = price_data["p"][currency_code]
+    for index in get_country_groups(price_data["c"], title):
+      if index in relevant_data:
+        return relevant_data[index].split(",")
+    else:
+        raise ValueError('Price value for game "{}" not found for country "{}"' \
+            ' (or rest of the world) and currency {}.'.format(
+            title, country_code, currency_value))
+
+
+  # With the previous auxiliary functions, parsing the remaining data is trivial.
+  # From the URL we do not get just the game info. There is also a variable called
+  # "retryInterval" (with the value 1.5 at the moment). Thus, we verify that
+  # we will work only on the dictionaries.
+  #
+  # We iterate across all games available. This means that it will work no
+  # matter how many games are introduced for sale.
+
+  for item in data.values():
+    if type(item) == dict:
+      game_title = item["title"]
+      local_discount_price, local_full_price = get_price_value(item["prices"], game_title)
+      url_format = "https://www.gog.com{}"
+      yield {
+        "title": game_title,
+        "price_discount": int(item["discount"]),
+        "stock_left": int(item["stockLeft"]),
+        "total_stock": int(item["stock"]),
+        "local_discount_price": float(local_discount_price),
+        "local_full_price": float(local_full_price),
+        "id": int(item["id"]),
+        "url": url_format.format(item["url"]),
+        "image": item["image"],
+        "time_checked": time.time()}
+      
+
+# It would be unpolite to be constantly hammering GOG's servers. For this
+# reason we define polling intervals. Ideally we would inquiry GOG just after
+# a new game is introduced.
+
+def calculate_depletion_time(earliest_data, latest_data):
+  "Given two data readings, calculate how many seconds untill all remaining \
+units (present at the latest reading) are gone."
+  stock_reduction = earliest_data["stock_left"] - latest_data["stock_left"]
+  if stock_reduction <= 0:
+    # No sale since the previous polling, or (and this is possible), the
+    # number of games still available has gone up --- I assume this happens
+    # when the sale of units does not carry through.
+    return None
+  else:
+    earliest_time = earliest_data["time_checked"]
+    latest_time = latest_data["time_checked"]
+    time_interval = latest_time - earliest_time
+    depletion_ratio = stock_reduction / time_interval
+    depletion_time = latest_data["stock_left"] / depletion_ratio
+    return int(depletion_time)
+
+
+
+# Do the server polling.
+
+def check_games():
+
+  def time_fmt(time_value):
+    "Translate time in seconds since epoch into a regular current time string."
+    return time.strftime("%H:%M:%S", time.gmtime(time_value))
+
+  # We will track how long we expect each game 
+  all_delays = []
+  avg_seconds_to_sell = 3  # How many seconds do we expect for a copy to sell?
+  for game_info in extract_game_data(read_from_url(url)):
+    game_id = game_info["id"]
+    current_time = time.time()
+
+    if game_id not in seen_games:
+
+        # This is the first time we see this game. We cannot say yet how long 
+        # it will be available for sale.
+
+      provide_notification(game_info)
+      seen_games[game_id] = [game_info]
+      all_delays.append(game_info["stock_left"] * avg_seconds_to_sell)
+      print('{time}: "{title}"  {currency} {local_discount_price}  ' \
+          '{stock_left}/{total_stock})'.format(
+          time=time_fmt(current_time),
+          currency=currency_code,
+          **game_info))
+    else:
+
+        # Estimate how long the stock it will last, now that we have
+        # two observations or more.
+        # The long_estimate compares the first time we saw the game available
+        # with the present.
+        # The short estimate compares it with the last time we saw more units
+        # for sale than we currently see (most often, the previous observation).
+
+      long_time_estimate = calculate_depletion_time(seen_games[game_id][0], game_info)
+      for i in range(len(seen_games[game_id])-1, -1, -1):
+        if seen_games[game_id][i]["stock_left"] > game_info["stock_left"]:
+          short_time_estimate = calculate_depletion_time(seen_games[game_id][i], game_info)
+          current_delay = (long_time_estimate + short_time_estimate) / 2
+          break
+      else:
+        short_time_estimate = None
+        current_delay = None
+
+      # Remember this observation only if it does not represent an odd event.
+      if game_info["stock_left"] < seen_games[game_id][-1]["stock_left"]:
+        seen_games[game_id].append(game_info)
+
+      all_delays.append(current_delay)
+      print('{time}: "{title}"  {currency} {local_discount_price}  ' \
+          '{stock_left}/{total_stock} expected sale time: {delay} ' \
+          '({delay_time}))'.format(
+          time=time_fmt(current_time),
+          currency=currency_code,
+          delay=current_delay/60 if current_delay else "NA",
+          delay_time=time_fmt(current_delay + current_time) if current_delay else "NA",
+          **game_info))
+
+  # How long do we expect to wait for the next poll?
+  wait_time = int(min(filter(None,all_delays)))
+  if wait_time < 15:
+    print("  No time to sleep!")
+  else:
+    print("  You may nap for: {:.1f} minutes ({:s})".format(
+        wait_time/60, time_fmt(current_time + wait_time)))
+
+  return wait_time
+
+
+
+if __name__ == "__main__":
+  minimum_sleep_value = 2
+
+  while True:
+    wait_time = max(min(sleep_time, check_games()), minimum_sleep_value)
+    time.sleep(sleep_time)
