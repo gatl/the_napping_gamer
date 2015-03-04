@@ -76,6 +76,14 @@ currency_code = 'EUR'
 country_code = 'PT'
 
 
+# If you have a wishlist, the script will only notify for games in it.
+# The list will have one game per line, and is case insensitive.
+# This is not a regular expression. We do a substring matching.
+# Tell the script the name of the file here.
+
+wishlist_file = "wishlist.txt"
+
+
 # Do you want to get your browser to open the page for the new game on sale?
 
 browser_notify = True
@@ -131,6 +139,10 @@ def provide_notification(game_info):
   msg_text = msg_format.format_map(notification_data)
   print(msg_text)
 
+  # Before bothering the user, see if the game is worthwhile.
+  if not game_is_relevant(game_info):
+    return
+
   # This is how we notify the user that a new game is available.
   # The code is different for each platform.
 
@@ -165,6 +177,28 @@ def provide_notification(game_info):
     if browser_notify:
       webbrowser.open(notification_data["url"], new=2, autoraise=True)
 
+
+
+# Check to see the gamelist. If the gamelist file is not present, assume that
+# the user wants to see all games being offered.
+# The list is checked at each run (that is, when something new appears). That
+# way the list can be changed without the program being restarted.
+
+def game_is_relevant(game_info):
+  "If there is no wishlist file, all games are relevant. Otherwise, check \
+line in the wishlist file for a (case insensitive) substring of the current \
+game title."
+
+  try:
+    with open(wishlist_file, "r") as wishlist:
+      for entry in wishlist:
+        if entry.strip().lower() in game_info["title"].lower():
+          return True
+      else:
+        return False
+  except FileNotFoundError:
+    return True
+    
 
 
 # Read the contents of the file at the URL provided. 
