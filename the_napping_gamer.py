@@ -25,6 +25,7 @@
 # You can also add a file called "wishlist.txt" to the script, containing
 # part of the name of the game you seek. You will only be notified when those
 # games show up.
+# You can also set a maximum price, so that bad offers do not disturb you.
 #
 # Finally, if you do not want the browser popping up, turn it off at the end
 # of the configuration section. The same goes with sound notifications.
@@ -82,6 +83,11 @@ country_code = 'PT'
 # Tell the script the name of the file here.
 
 wishlist_file = "wishlist.txt"
+
+
+# How much money are you willing to pay for a game you want (in your currency)?
+
+maximum_price = 99.99
 
 
 # Do you want to get your browser to open the page for the new game on sale?
@@ -206,16 +212,20 @@ def provide_notification(game_info):
 
 
 
-# Check to see the gamelist. If the gamelist file is not present, assume that
-# the user wants to see all games being offered.
+# Check to see if the game fits the price and if the name is in the wishlist.
+# If the wishlist file is not present, assume that the user wants to see all
+# games being offered.
 # The list is checked at each run (that is, when something new appears). That
 # way the list can be changed without the program being restarted.
 
 def game_is_relevant(game_info):
-  "If there is no wishlist file, all games are relevant. Otherwise, check \
-line in the wishlist file for a (case insensitive) substring of the current \
-game title."
+  "Verify that the game meets the price criteria and if it is found in the \
+wishlist. If there is no wishlist file, all games are relevant. \
+Otherwise, check line in the wishlist file for a (case insensitive) substring \
+of the current game title."
 
+  if game_info["local_discount_price"] > maximum_price:
+    return False
   try:
     with open(wishlist_file, "r") as wishlist:
       for entry in wishlist:
