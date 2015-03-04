@@ -14,19 +14,30 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 
-import time
-import urllib.request
-import json
-import os
-import sys
-import webbrowser
+
+###############################################################################
+#                      THIS IS WHAT YOU NEED TO KNOW:
+#
+# How do you configure this program for your needs?
+# Only two things are important: your country and your currency.
+# If you don't care about the prices, ignore this part.
+#
+# You can also add a file called "wishlist.txt" to the script, containing
+# part of the name of the game you seek. You will only be notified when those
+# games show up.
+#
+# Finally, if you do not want the browser popping up, turn it off at the end
+# of the configuration section.
+#
+# Below you will find the configuration entries.
+#
 
 
-# We only need to configure the currency used and your country, due
-# to regional prices. Not all combinations are available from our
-# data source.
 
-# First we will set the currency. Chose one of the following:
+# We only need to configure the country, due to regional prices.
+# Not all combinations for country/currency can be found in our data source.
+
+# We will set the currency first. Chose one of the following:
 #
 #  'AUD', 'EUR', 'GBP', 'RUB', 'USD'
 
@@ -73,6 +84,8 @@ browser_notify = True
 # There is no need to change the rest of the code if you do not want to.
 
 
+
+
 # This is the URL to GOG's "API".
 
 url = "http://www.gog.com/doublesomnia/getdeals"
@@ -90,6 +103,13 @@ sleep_time = 60
 seen_games = dict()
 
 
+import time
+import urllib.request
+import json
+import os
+import sys
+import webbrowser
+
 
 # This function provides the user notification for a new game just seen.
 # A new process will be initiated, like a browser window, a music player or
@@ -100,6 +120,7 @@ seen_games = dict()
 def provide_notification(game_info):
   "Notify the user that a new game is available in promotion."
 
+  # Print the new entry.
   current_time = time.strftime("%H:%M:%S",time.localtime())
   notification_data = {"currency": currency_code, "time": current_time}
   notification_data.update(game_info)
