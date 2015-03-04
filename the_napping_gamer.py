@@ -217,7 +217,7 @@ groups where it belongs. The title is used only for error messages."
       elif "REST" in countries_in_group:
         backup_value = key
     else: 
-      # We exausted the list of countries and did not find the code.
+      # We exhausted the list of countries and did not find the code.
       # We'll use "REST" if we saw it.
       if backup_value is None:
         raise ValueError('Price index for "{}" not found for country "{}"' \
