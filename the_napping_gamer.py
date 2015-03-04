@@ -27,7 +27,7 @@
 # games show up.
 #
 # Finally, if you do not want the browser popping up, turn it off at the end
-# of the configuration section.
+# of the configuration section. The same goes with sound notifications.
 #
 # Below you will find the configuration entries.
 #
