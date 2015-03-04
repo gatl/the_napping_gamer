@@ -456,5 +456,5 @@ if __name__ == "__main__":
 
   while True:
     wait_time = max(min(sleep_time, check_games()), minimum_sleep_value)
-    print("Next peek in {} seconds.".format(sleep_time))
-    time.sleep(sleep_time)
+    print("Next peek in {} seconds.".format(wait_time))
+    time.sleep(wait_time)
