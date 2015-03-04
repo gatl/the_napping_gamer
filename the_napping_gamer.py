@@ -192,7 +192,8 @@ game title."
   try:
     with open(wishlist_file, "r") as wishlist:
       for entry in wishlist:
-        if entry.strip().lower() in game_info["title"].lower():
+        cleaned_entry = entry.strip().lower()
+        if cleaned_entry != "" and cleaned_entry in game_info["title"].lower():
           return True
       else:
         return False
