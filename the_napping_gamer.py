@@ -19,6 +19,7 @@ import urllib.request
 import json
 import os
 import sys
+import webbrowser
 
 
 # We only need to configure the currency used and your country, due
@@ -64,6 +65,11 @@ currency_code = 'EUR'
 country_code = 'PT'
 
 
+# Do you want to get your browser to open the page for the new game on sale?
+
+browser_notify = True
+
+
 # There is no need to change the rest of the code if you do not want to.
 
 
@@ -75,7 +81,7 @@ url = "http://www.gog.com/doublesomnia/getdeals"
 # Initial polling interval in seconds. This will be reduced when apropriate
 # (e.g. a game pool is almost depleted it will reduce drasticaly).
 
-sleep_time = 20
+sleep_time = 60
 
 
 # Data about the games we already saw will be remembered.
@@ -94,14 +100,49 @@ seen_games = dict()
 def provide_notification(game_info):
   "Notify the user that a new game is available in promotion."
 
-  pid = os.fork()
-  if pid == 0:
-    current_time = time.strftime("%H:%M",time.localtime())
-    title = "GOG  {}".format(current_time)
-    msg_format = '{title}<br>{local_discount_price:.2f} (-{price_discount:d}%)'\
-        '  {stock_left:d}/{total_stock:d}<br><a href="{url}">{url}</a>'
-    msg_text = msg_format.format_map(game_info)
-    os.execl("/usr/bin/notify-send", "nofify-send", "--expire-time=10000", title, msg_text)
+  current_time = time.strftime("%H:%M:%S",time.localtime())
+  notification_data = {"currency": currency_code, "time": current_time}
+  notification_data.update(game_info)
+
+  msg_format = '{time} NEW! "{title}"  '\
+'at {currency} {local_discount_price:.2f} (-{price_discount:d}%)  '\
+'{stock_left:d}/{total_stock:d} copies  {url}'
+  msg_text = msg_format.format_map(notification_data)
+  print(msg_text)
+
+  # This is how we notify the user that a new game is available.
+  # The code is different for each platform.
+
+  if sys.platform.startswith('linux') or sys.platform.startswith('freebsd'):
+
+    # This is unixland. Use the "notify-send" to discreetly inform the user.
+    # We fork and exec instead of calling os.system() for security reasons.
+    # (Who knows what that data server splits out? Or what if a game is called
+    # something like "; rm -rf /"?)
+
+    pid = os.fork()
+    if pid == 0:
+      title = "GOG"
+      short_text_format = "{title}  {currency}\xa0{local_discount_price}\n{url}"
+      short_text = short_text_format.format_map(notification_data)
+      os.execl("/usr/bin/notify-send", "nofify-send", "--expire-time=10000",
+          "--app-name=the_napping_gamer", title, short_text)
+    else:
+      if browser_notify:
+        webbrowser.open(notification_data["url"], new=2, autoraise=True)
+
+  elif sys.platform.startswith('win32') or sys.platform.startswith('cygwin'):
+    # This is windows. WAKE UP! THERE IS A NEW SALE GOING ON!
+    import winsound
+    winsound.Beep(1100,300)
+    if browser_notify:
+      webbrowser.open(notification_data["url"], new=2, autoraise=True)
+
+  else:
+    # I really don't know what to do here. I'll pray that this works
+    # and sufices.
+    if browser_notify:
+      webbrowser.open(notification_data["url"], new=2, autoraise=True)
 
 
 
@@ -118,7 +159,7 @@ def read_from_url(url):
     indata = urllib.request.urlopen(url)
   except urllib.error.HTTPError:
     time.sleep(retry_wait_time)
-    print("Network hickup.", file=sys.stderr)
+    print("(Network hickup.)", file=sys.stderr)
     indata = urllib.request.urlopen(url)
   bytes_data = indata.read()
   json_data = json.loads(bytes_data.decode())
@@ -277,8 +318,8 @@ def check_games():
       provide_notification(game_info)
       seen_games[game_id] = [game_info]
       all_delays.append(game_info["stock_left"] * avg_seconds_to_sell)
-      print('{time}: "{title}"  {currency} {local_discount_price}  ' \
-          '{stock_left}/{total_stock})'.format(
+      print('{time}    "{title}"  {currency} {local_discount_price}  ' \
+          '{stock_left}/{total_stock}'.format(
           time=time_fmt(current_time),
           currency=currency_code,
           **game_info))
@@ -306,8 +347,8 @@ def check_games():
         seen_games[game_id].append(game_info)
 
       all_delays.append(current_delay)
-      print('{time}: "{title}"  {currency} {local_discount_price}  ' \
-          '{stock_left}/{total_stock} expected sale time: {delay} ' \
+      print('{time}    "{title}"  {currency} {local_discount_price}  ' \
+          '{stock_left}/{total_stock} expected sale time: {delay:.1f} min ' \
           '({delay_time}))'.format(
           time=time_fmt(current_time),
           currency=currency_code,
@@ -318,10 +359,10 @@ def check_games():
   # How long do we expect to wait for the next poll?
   wait_time = int(min(filter(None,all_delays)))
   if wait_time < 15:
-    print("  No time to sleep!")
+    print("    No time to sleep!")
   else:
-    print("  You may nap for: {:.1f} minutes ({:s})".format(
-        wait_time/60, time_fmt(current_time + wait_time)))
+    print("    You may nap for {:.1f} more minutes ({:s}). I'll stand guard!".format(
+        wait_time/60, time_fmt(current_time + wait_time)), end="  ")
 
   return wait_time
 
@@ -332,4 +373,5 @@ if __name__ == "__main__":
 
   while True:
     wait_time = max(min(sleep_time, check_games()), minimum_sleep_value)
+    print("Next peek in {} seconds.".format(sleep_time))
     time.sleep(sleep_time)
