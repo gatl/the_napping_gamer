@@ -159,21 +159,30 @@ def provide_notification(game_info):
     # (Who knows what that data server splits out? Or what if a game is called
     # something like "; rm -rf /"?)
 
-    title = "GOG"
-    short_text_format = "{title}  {currency}\xa0{local_discount_price}\n{url}"
-    short_text = short_text_format.format_map(notification_data)
-    subprocess.call(["/usr/bin/notify-send", "--expire-time=10000",
-        "--app-name=the_napping_gamer", title, short_text])
+    try:
+      title = "GOG"
+      short_text_format = "{title}  {currency}\xa0{local_discount_price}\n{url}"
+      short_text = short_text_format.format_map(notification_data)
+      subprocess.call(["/usr/bin/notify-send", "--expire-time=10000",
+          "--app-name=the_napping_gamer", title, short_text])
+    except FileNotFoundError:
+      pass
 
     if sound_notify:
-      # Do not forget that beep needs to be SETUID to work with a regular user.
-      subprocess.call(["/usr/bin/beep"])
+      try:
+        # Do not forget that beep needs to be SETUID to work.
+        subprocess.call(["/usr/bin/beep"])
+      except FileNotFoundError:
+        pass
 
-      # eSpeak produces a lot of errors. We will hide its output.
-      # Warning: this may mask some problem with the program.
-      with open("/dev/null", "w") as blackhole:
-        subprocess.call(["/usr/bin/espeak", game_info["title"]],
-            stderr=blackhole)
+      try:
+        # eSpeak produces a lot of errors. We will hide its output.
+        # Warning: this may mask some problem with the program.
+        with open("/dev/null", "w") as blackhole:
+          subprocess.call(["/usr/bin/espeak", game_info["title"]],
+              stderr=blackhole)
+      except FileNotFoundError:
+        pass
 
     if browser_notify:
       webbrowser.open(notification_data["url"], new=2, autoraise=True)
