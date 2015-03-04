@@ -86,7 +86,7 @@ wishlist_file = "wishlist.txt"
 
 # Do you want to get your browser to open the page for the new game on sale?
 
-browser_notify = True
+browser_notify = False
 
 
 # There is no need to change the rest of the code if you do not want to.
@@ -153,16 +153,23 @@ def provide_notification(game_info):
     # (Who knows what that data server splits out? Or what if a game is called
     # something like "; rm -rf /"?)
 
-    pid = os.fork()
-    if pid == 0:
-      title = "GOG"
-      short_text_format = "{title}  {currency}\xa0{local_discount_price}\n{url}"
-      short_text = short_text_format.format_map(notification_data)
-      os.execl("/usr/bin/notify-send", "nofify-send", "--expire-time=10000",
-          "--app-name=the_napping_gamer", title, short_text)
-    else:
-      if browser_notify:
-        webbrowser.open(notification_data["url"], new=2, autoraise=True)
+    def execute_external(program, arguments=[]):
+      pid = os.fork()
+      if pid == 0:
+        basename = os.path.basename(program)
+        os.execl(program, basename, *arguments)
+
+    title = "GOG"
+    short_text_format = "{title}  {currency}\xa0{local_discount_price}\n{url}"
+    short_text = short_text_format.format_map(notification_data)
+    notification = ("/usr/bin/notify-send", ["--expire-time=10000",
+        "--app-name=the_napping_gamer", title, short_text])
+    execute_external(notification)
+    execute_external("/usr/bin/beep")
+    execute_external("/usr/bin/espeak", [game_info["title"]])
+
+    if browser_notify:
+      webbrowser.open(notification_data["url"], new=2, autoraise=True)
 
   elif sys.platform.startswith('win32') or sys.platform.startswith('cygwin'):
     # This is windows. WAKE UP! THERE IS A NEW SALE GOING ON!
