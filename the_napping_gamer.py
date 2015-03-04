@@ -86,7 +86,12 @@ wishlist_file = "wishlist.txt"
 
 # Do you want to get your browser to open the page for the new game on sale?
 
-browser_notify = False
+browser_notify = True
+
+
+# How about making some noise?
+
+sound_notify = True
 
 
 # There is no need to change the rest of the code if you do not want to.
@@ -114,9 +119,10 @@ seen_games = dict()
 import time
 import urllib.request
 import json
-import os
+import os.path
 import sys
 import webbrowser
+import subprocess
 
 
 # This function provides the user notification for a new game just seen.
@@ -153,28 +159,33 @@ def provide_notification(game_info):
     # (Who knows what that data server splits out? Or what if a game is called
     # something like "; rm -rf /"?)
 
-    def execute_external(program, arguments=[]):
-      pid = os.fork()
-      if pid == 0:
-        basename = os.path.basename(program)
-        os.execl(program, basename, *arguments)
-
     title = "GOG"
     short_text_format = "{title}  {currency}\xa0{local_discount_price}\n{url}"
     short_text = short_text_format.format_map(notification_data)
-    notification = ("/usr/bin/notify-send", ["--expire-time=10000",
+    subprocess.call(["/usr/bin/notify-send", "--expire-time=10000",
         "--app-name=the_napping_gamer", title, short_text])
-    execute_external(notification)
-    execute_external("/usr/bin/beep")
-    execute_external("/usr/bin/espeak", [game_info["title"]])
+
+    if sound_notify:
+      # Do not forget that beep needs to be SETUID to work with a regular user.
+      subprocess.call(["/usr/bin/beep"])
+
+      # eSpeak produces a lot of errors. We will hide its output.
+      # Warning: this may mask some problem with the program.
+      with open("/dev/null", "w") as blackhole:
+        subprocess.call(["/usr/bin/espeak", game_info["title"]],
+            stderr=blackhole)
 
     if browser_notify:
       webbrowser.open(notification_data["url"], new=2, autoraise=True)
 
   elif sys.platform.startswith('win32') or sys.platform.startswith('cygwin'):
+
     # This is windows. WAKE UP! THERE IS A NEW SALE GOING ON!
-    import winsound
-    winsound.Beep(1100,300)
+
+    if sound_notify:
+      import winsound
+      winsound.Beep(1100,300)
+
     if browser_notify:
       webbrowser.open(notification_data["url"], new=2, autoraise=True)
 
