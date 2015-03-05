@@ -452,7 +452,7 @@ def check_games():
   # How long do we expect to wait for the next poll?
   wait_time = int(min(filter(None,all_delays)))
   if wait_time < 15:
-    print("    No time to sleep!")
+    print("    No time to sleep!", end="  ")
   else:
     print("    You may nap for {:.1f} more minutes ({:s}). I'll stand guard!".format(
         wait_time/60, time_fmt(current_time + wait_time)), end="  ")
