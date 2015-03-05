@@ -441,11 +441,11 @@ def check_games():
 
       all_delays.append(current_delay)
       print('{time}    "{title}"  {currency} {local_discount_price}  ' \
-          '{stock_left}/{total_stock} expected sale time: {delay:.1f} min ' \
+          '{stock_left}/{total_stock} expected sale time: {delay} min ' \
           '({delay_time}))'.format(
           time=time_fmt(current_time),
           currency=currency_code,
-          delay=current_delay/60 if current_delay else "NA",
+          delay="{:.1f}".format(current_delay/60) if current_delay else "NA",
           delay_time=time_fmt(current_delay + current_time) if current_delay else "NA",
           **game_info))
 
