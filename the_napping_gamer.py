@@ -90,6 +90,9 @@ wishlist_file = "wishlist.txt"
 maximum_price = 99.99
 
 
+
+# How to do the "new game" notification!
+
 # Do you want to get your browser to open the page for the new game on sale?
 
 browser_notify = True
@@ -108,8 +111,20 @@ sound_notify = True
 
 
 # Use a fancy sound (currently only on MS Windos).
+# (Requires sound_notify enabled to have effect.)
+# If set to False, just use a beeping sound.
 
 fancy_sound = True
+
+
+# Use the eSpeak text-to-speech.
+# Its website is at http://espeak.sourceforge.net/
+# Please enter the full path of the "espeak" binary, or leave it empty
+# (or set to None) to disable its use.
+# This option currently is independent of sound_notify.
+
+espeak_system = ""
+
 
 
 # There is no need to change the rest of the code if you do not want to.
@@ -188,8 +203,7 @@ def provide_notification(game_info):
 
   if sys.platform.startswith('linux') or sys.platform.startswith('freebsd'):
 
-    # This is unixland. Use the "notify-send" to discreetly inform the user,
-    # and call "beep" to make some noise.
+    # Use the "notify-send" to discreetly inform the user.
 
     try:
       title = "GOG"
@@ -207,26 +221,34 @@ def provide_notification(game_info):
       except FileNotFoundError:
         pass
 
+    if espeak_system:
       try:
         # eSpeak produces a lot of errors. We will hide its output.
         # Warning: this may mask some problem with the program.
         with open("/dev/null", "w") as blackhole:
-          subprocess.call(["/usr/bin/espeak", game_info["title"]],
+          subprocess.call([espeak_system, game_info["title"]],
               stderr=blackhole)
       except FileNotFoundError:
-        pass
+        print("ERROR: Could not find espeak program: ", espeak_system, file=sys.stderr)
+
+
 
 
   elif sys.platform.startswith('win32') or sys.platform.startswith('cygwin'):
     if sound_notify:
       import winsound
       if fancy_sound:
-        winsound.MB_ICONASTERISK
+        winsound.PlaySound(None, winsound.MB_ICONASTERISK)
       else:
         beep_repeats = 4
         for i in range(beep_repeats):
           winsound.Beep(1100,300)
 
+    if espeak_system:
+      try:
+        subprocess.call([espeak_system, game_info["title"]],
+      except FileNotFoundError:
+        print("ERROR: Could not find espeak program: ", espeak_system, file=sys.stderr)
 
 
 # Check to see if the game fits the price and if the name is in the wishlist.
