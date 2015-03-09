@@ -399,6 +399,7 @@ def check_games():
   # We will track how long we expect each game 
   all_delays = []
   avg_seconds_to_sell = 3  # How many seconds do we expect for a copy to sell?
+  short_time = 15  # How many seconds is a short wait time?
   for game_info in extract_game_data(read_from_url(url)):
     game_id = game_info["id"]
     current_time = time.time()
@@ -450,8 +451,8 @@ def check_games():
           **game_info))
 
   # How long do we expect to wait for the next poll?
-  wait_time = int(min(filter(None,all_delays)))
-  if wait_time < 15:
+  wait_time = int(min(filter(None,all_delays), default=sleep_time))
+  if wait_time <= short_time:
     print("    No time to sleep!", end="  ")
   else:
     print("    You may nap for {:.1f} more minutes ({:s}). I'll stand guard!".format(
