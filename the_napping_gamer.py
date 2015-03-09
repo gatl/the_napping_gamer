@@ -95,6 +95,13 @@ maximum_price = 99.99
 browser_notify = True
 
 
+# If you have more than one browser, which one should be used?
+# Valid names include 'firefox', 'google-chrome' and 'opera'.
+# See full list at https://docs.python.org/3/library/webbrowser.html
+
+browser_name = None
+
+
 # How about making some noise?
 
 sound_notify = True
@@ -131,6 +138,7 @@ import webbrowser
 import subprocess
 
 
+
 # This function provides the user notification for a new game just seen.
 # A new process will be initiated, like a browser window, a music player or
 # a desktop notification tool.
@@ -139,6 +147,8 @@ import subprocess
 
 def provide_notification(game_info):
   "Notify the user that a new game is available in promotion."
+
+  snipe(game_info)
 
   # Print the new entry.
   current_time = time.strftime("%H:%M:%S",time.localtime())
@@ -151,19 +161,30 @@ def provide_notification(game_info):
   msg_text = msg_format.format_map(notification_data)
   print(msg_text)
 
+
   # Before bothering the user, see if the game is worthwhile.
   if not game_is_relevant(game_info):
     return
 
-  # This is how we notify the user that a new game is available.
+
+  # This is supposed to be the URL used to purchase the game.
+  # I hope I got it right. It seems to work, at least.
+
+  purchase_url_fmt = "https://www.gog.com/checkout/doublesomnia/{:d}/{:d}"
+  purchase_url = purchase_url_fmt.format(game_info["id"],
+      int(game_info["local_discount_price"]*100))
+
+  if browser_notify:
+    webbrowser.get(browser_name).open(purchase_url, new=2, autoraise=True)
+
+
+  # This is how we further notify the user that a new game is available.
   # The code is different for each platform.
 
   if sys.platform.startswith('linux') or sys.platform.startswith('freebsd'):
 
-    # This is unixland. Use the "notify-send" to discreetly inform the user.
-    # We fork and exec instead of calling os.system() for security reasons.
-    # (Who knows what that data server splits out? Or what if a game is called
-    # something like "; rm -rf /"?)
+    # This is unixland. Use the "notify-send" to discreetly inform the user,
+    # and call "beep" to make some noise.
 
     try:
       title = "GOG"
@@ -190,25 +211,11 @@ def provide_notification(game_info):
       except FileNotFoundError:
         pass
 
-    if browser_notify:
-      webbrowser.open(notification_data["url"], new=2, autoraise=True)
 
   elif sys.platform.startswith('win32') or sys.platform.startswith('cygwin'):
-
-    # This is windows. WAKE UP! THERE IS A NEW SALE GOING ON!
-
     if sound_notify:
       import winsound
       winsound.Beep(1100,300)
-
-    if browser_notify:
-      webbrowser.open(notification_data["url"], new=2, autoraise=True)
-
-  else:
-    # I really don't know what to do here. I'll pray that this works
-    # and sufices.
-    if browser_notify:
-      webbrowser.open(notification_data["url"], new=2, autoraise=True)
 
 
 
