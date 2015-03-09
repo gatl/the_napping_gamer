@@ -107,6 +107,11 @@ browser_name = None
 sound_notify = True
 
 
+# Use a fancy sound (currently only on MS Windos).
+
+fancy_sound = True
+
+
 # There is no need to change the rest of the code if you do not want to.
 
 
@@ -215,7 +220,12 @@ def provide_notification(game_info):
   elif sys.platform.startswith('win32') or sys.platform.startswith('cygwin'):
     if sound_notify:
       import winsound
-      winsound.Beep(1100,300)
+      if fancy_sound:
+        winsound.MB_ICONASTERISK
+      else:
+        beep_repeats = 4
+        for i in range(beep_repeats):
+          winsound.Beep(1100,300)
 
 
 
