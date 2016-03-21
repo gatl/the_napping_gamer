@@ -94,6 +94,7 @@ maximum_price = 99.99
 # How to do the "new game" notification!
 
 # Do you want to get your browser to open the page for the new game on sale?
+# Valid values are: "True" and "False".
 
 browser_notify = True
 
@@ -106,6 +107,7 @@ browser_name = None
 
 
 # How about making some noise?
+# Valid values are: "True" and "False".
 
 sound_notify = True
 
@@ -113,6 +115,7 @@ sound_notify = True
 # Use a fancy sound (currently only on MS Windos).
 # (Requires sound_notify enabled to have effect.)
 # If set to False, just use a beeping sound.
+# Valid values are: "True" and "False".
 
 fancy_sound = True
 
@@ -382,9 +385,22 @@ globally defined country and currency. Returns the tuple (discounted, full)."
   # We iterate across all games available. This means that it will work no
   # matter how many games are introduced for sale.
 
-  game_title = data["product"]["url"].split("/")[-1].replace("_", " ")
-  local_discount_price, local_full_price = get_price_value(data["product"]["prices"])
-  url_format = "https://www.gog.com{}"
+  url_format = "https://www.gog.com/{}"
+
+  if data["dealType"] == "bundle":
+    game_title = data["bundle"]["title"]
+    local_discount_price, local_full_price = get_price_value(data["bundle"]["prices"])
+    game_id = 0
+    game_url = "https://www.gog.com/"
+    game_image = data["bundle"]["image"],
+  elif data["dealType"] == "product":
+    game_title = data["product"]["url"].split("/")[-1].replace("_", " ")
+    local_discount_price, local_full_price = get_price_value(data["product"]["prices"])
+    game_id = int(data["product"]["id"]),
+    game_url = url_format.format(data["product"]["url"]),
+    game_image = data["product"]["image"],
+  else:
+    raise ValueError("Unknown deal type: {}.".format(data["dealType"]))
   return [{
     "title": game_title,
     "price_discount": int(data["discount"]),
@@ -392,9 +408,9 @@ globally defined country and currency. Returns the tuple (discounted, full)."
     "total_stock": int(data["amountTotal"]),
     "local_discount_price": local_discount_price,
     "local_full_price": local_full_price,
-    "id": int(data["product"]["id"]),
-    "url": url_format.format(data["product"]["url"]),
-    "image": data["product"]["image"],
+    "id": game_id,
+    "url": game_url,
+    "image": game_image,
     "time_checked": time.time()}]
 
 
