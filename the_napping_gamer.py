@@ -369,7 +369,7 @@ globally defined country and currency. Returns the tuple (discounted, full)."
   if data["dealType"] == "bundle":
     game_title = data["bundle"]["title"]
     local_discount_price = local_full_price = 0
-    for product_id in data["bundle"][productIds]:
+    for product_id in data["bundle"]["productIds"]:
       prod_id_in_bundle = str(product_id)
       prod_local_full_price, prod_local_discount_price = get_price_value(data["bundle"]["prices"][prod_id_in_bundle])
       local_discount_price += prod_local_discount_price
