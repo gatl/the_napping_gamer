@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
 # Copyright 2015 Gustavo Laboreiro
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 #     Unless required by applicable law or agreed to in writing, software
 #     distributed under the License is distributed on an "AS IS" BASIS,
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -71,7 +71,7 @@ currency_code = 'EUR'
 #  'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ', 'UA', 'UG', 'UM', 'US', 'UY', 'UZ',
 #  'UZ', 'VA', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'XK', 'YE',
 #  'YT', 'ZA', 'ZM', 'ZW',
-# 
+#
 # If you cannot find your contry here, use GOG's code 'REST'.
 
 country_code = 'PT'
@@ -134,7 +134,7 @@ espeak_system = ""
 
 # This is the URL to GOG's "API".
 
-url = "http://www.gog.com/doublesomnia/getdeals"
+url = "https://www.gog.com/insomnia/current_deal"
 
 
 # Initial polling interval in seconds. This will be reduced when apropriate
@@ -168,8 +168,6 @@ import subprocess
 def provide_notification(game_info):
   "Notify the user that a new game is available in promotion."
 
-  snipe(game_info)
-
   # Print the new entry.
   current_time = time.strftime("%H:%M:%S",time.localtime())
   notification_data = {"currency": currency_code, "time": current_time}
@@ -190,9 +188,8 @@ def provide_notification(game_info):
   # This is supposed to be the URL used to purchase the game.
   # I hope I got it right. It seems to work, at least.
 
-  purchase_url_fmt = "https://www.gog.com/checkout/doublesomnia/{:d}/{:d}"
-  purchase_url = purchase_url_fmt.format(game_info["id"],
-      int(game_info["local_discount_price"]*100))
+  purchase_url_fmt = "https://www.gog.com/"
+  purchase_url = purchase_url_fmt.format(game_info) # Direct link not working.
 
   if browser_notify:
     webbrowser.get(browser_name).open(purchase_url, new=2, autoraise=True)
@@ -275,7 +272,7 @@ of the current game title."
         return False
   except FileNotFoundError:
     return True
-    
+
 
 
 # Read the contents of the file at the URL provided. 
@@ -337,7 +334,7 @@ def extract_game_data(data):
   # none, we will return the group for "REST".
 
 
-  def get_country_groups(price_data, title):
+  def get_country_groups(price_data):
     "Based on the country data for the current game from GOG, get the number\
 groups where it belongs. The title is used only for error messages."
 
@@ -345,15 +342,14 @@ groups where it belongs. The title is used only for error messages."
     for key, values in price_data.items():
       countries_in_group = values.split(",")
       if country_code in countries_in_group:
-        yield key
+        return key
       elif "REST" in countries_in_group:
         backup_value = key
-    else: 
+    else:
       # We exhausted the list of countries and did not find the code.
       # We'll use "REST" if we saw it.
       if backup_value is None:
-        raise ValueError('Price index for "{}" not found for country "{}"' \
-            ' or for the rest of the world).'.format(title, country_code))
+        raise ValueError('Price index not found for country "{}" or for the rest of the world).'.format(country_code))
       else:
         return backup_value
 
@@ -364,18 +360,18 @@ groups where it belongs. The title is used only for error messages."
   # Once we know which number groups our country integrates, we'll look only at
   # them.
 
-  def get_price_value(price_data, title):
+  def get_price_value(price_data):
     "From the GOG price data structure, extract only the prices matching the \
 globally defined country and currency. Returns the tuple (discounted, full)."
-
-    relevant_data = price_data["p"][currency_code]
-    for index in get_country_groups(price_data["c"], title):
-      if index in relevant_data:
-        return relevant_data[index].split(",")
-    else:
-        raise ValueError('Price value for game "{}" not found for country "{}"' \
-            ' (or rest of the world) and currency {}.'.format(
-            title, country_code, currency_value))
+    index = get_country_groups(price_data["countriesGroups"])
+    currency_values = price_data["groupsPrices"]
+    try:
+      values = currency_values[currency_code][str(index)].split(";")
+      return float(values[0]), float(values[1])
+    except ValueError:
+      raise ValueError('Price value not found for country "{}"' \
+                       ' (or rest of the world) and currency {}.'.format(
+                         country_code, currency_code))
 
 
   # With the previous auxiliary functions, parsing the remaining data is trivial.
@@ -386,23 +382,21 @@ globally defined country and currency. Returns the tuple (discounted, full)."
   # We iterate across all games available. This means that it will work no
   # matter how many games are introduced for sale.
 
-  for item in data.values():
-    if type(item) == dict:
-      game_title = item["title"]
-      local_discount_price, local_full_price = get_price_value(item["prices"], game_title)
-      url_format = "https://www.gog.com{}"
-      yield {
-        "title": game_title,
-        "price_discount": int(item["discount"]),
-        "stock_left": int(item["stockLeft"]),
-        "total_stock": int(item["stock"]),
-        "local_discount_price": float(local_discount_price),
-        "local_full_price": float(local_full_price),
-        "id": int(item["id"]),
-        "url": url_format.format(item["url"]),
-        "image": item["image"],
-        "time_checked": time.time()}
-      
+  game_title = data["product"]["url"].split("/")[-1].replace("_", " ")
+  local_discount_price, local_full_price = get_price_value(data["product"]["prices"])
+  url_format = "https://www.gog.com{}"
+  return [{
+    "title": game_title,
+    "price_discount": int(data["discount"]),
+    "stock_left": int(data["amountLeft"]),
+    "total_stock": int(data["amountTotal"]),
+    "local_discount_price": local_discount_price,
+    "local_full_price": local_full_price,
+    "id": int(data["product"]["id"]),
+    "url": url_format.format(data["product"]["url"]),
+    "image": data["product"]["image"],
+    "time_checked": time.time()}]
+
 
 # It would be unpolite to be constantly hammering GOG's servers. For this
 # reason we define polling intervals. Ideally we would inquiry GOG just after
@@ -435,7 +429,7 @@ def check_games():
     "Translate time in seconds since epoch into a regular current time string."
     return time.strftime("%H:%M:%S", time.gmtime(time_value))
 
-  # We will track how long we expect each game 
+  # We will track how long we expect each game.
   all_delays = []
   avg_seconds_to_sell = 3  # How many seconds do we expect for a copy to sell?
   short_time = 15  # How many seconds is a short wait time?
@@ -445,7 +439,7 @@ def check_games():
 
     if game_id not in seen_games:
 
-        # This is the first time we see this game. We cannot say yet how long 
+        # This is the first time we see this game. We cannot say yet how long
         # it will be available for sale.
 
       provide_notification(game_info)
