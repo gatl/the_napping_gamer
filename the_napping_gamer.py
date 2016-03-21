@@ -143,7 +143,7 @@ url = "https://www.gog.com/insomnia/current_deal"
 # Initial polling interval in seconds. This will be reduced when apropriate
 # (e.g. a game pool is almost depleted it will reduce drasticaly).
 
-sleep_time = 60
+sleep_time = 30
 
 
 # Data about the games we already saw will be remembered.
@@ -341,20 +341,27 @@ def extract_game_data(data):
     "Based on the country data for the current game from GOG, get the number\
 groups where it belongs. The title is used only for error messages."
 
-    backup_value = None
-    for key, values in price_data.items():
-      countries_in_group = values.split(",")
-      if country_code in countries_in_group:
-        return key
-      elif "REST" in countries_in_group:
-        backup_value = key
-    else:
-      # We exhausted the list of countries and did not find the code.
-      # We'll use "REST" if we saw it.
-      if backup_value is None:
-        raise ValueError('Price index not found for country "{}" or for the rest of the world).'.format(country_code))
-      else:
-        return backup_value
+    rest_of_the_world_string = "REST"
+
+    def extract_key_from_code(price_data, code):
+      for key, values in price_data.items():
+        countries_in_group = values.split(",")
+        if code in countries_in_group:
+          return key
+      return None
+
+    key = extract_key_from_code(price_data, country_code)
+    if key is not None:
+      return key
+
+    # Country not found. Check for "rest of the world":
+    key = extract_key_from_code(price_data, rest_of_the_world_string)
+    if key is not None:
+      return key
+
+    # Trouble. Abort.
+    print(price_data, file=sys.stderr)
+    raise KeyError('Price index not found for country "{}" or for the rest of the world).'.format(country_code))
 
 
   # The second step to get the current price for the game is to look for it
@@ -371,10 +378,11 @@ globally defined country and currency. Returns the tuple (discounted, full)."
     try:
       values = currency_values[currency_code][str(index)].split(";")
       return float(values[0]), float(values[1])
-    except ValueError:
-      raise ValueError('Price value not found for country "{}"' \
-                       ' (or rest of the world) and currency {}.'.format(
-                         country_code, currency_code))
+    except KeyError:
+      print("country group index: {}, currency_values: {}".format(index, currency_values), price_data, sep="\n", file=sys.stderr)
+      raise KeyError('Price value not found for country "{}"' \
+                       ' (or rest of the world) and currency {}. Keys seen: {}'.format(
+                         country_code, currency_code, ",".join(currency_values.keys())))
 
 
   # With the previous auxiliary functions, parsing the remaining data is trivial.
@@ -389,7 +397,12 @@ globally defined country and currency. Returns the tuple (discounted, full)."
 
   if data["dealType"] == "bundle":
     game_title = data["bundle"]["title"]
-    local_discount_price, local_full_price = get_price_value(data["bundle"]["prices"])
+    local_discount_price = local_full_price = 0
+    for product_id in data["bundle"][productIds]:
+      prod_id_in_bundle = str(product_id)
+      prod_local_discount_price, prod_local_full_price = get_price_value(data["bundle"]["prices"][prod_id_in_bundle])
+      local_discount_price += prod_local_discount_price
+      local_full_price += prod_local_full_price
     game_id = 0
     game_url = "https://www.gog.com/"
     game_image = data["bundle"]["image"],
