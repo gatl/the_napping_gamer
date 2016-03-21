@@ -333,39 +333,6 @@ def extract_game_data(data):
   # We can also see that the discounted price and full price are also comma
   # seperated. The keys "c" and "p" most likely stand for "country" and "price".
 
-  # We will first see what number groups our country belongs to. If we find
-  # none, we will return the group for "REST".
-
-
-  def get_country_groups(price_data):
-    "Based on the country data for the current game from GOG, get the number\
-groups where it belongs. The title is used only for error messages."
-
-    rest_of_the_world_string = "REST"
-
-    def extract_key_from_code(price_data, code):
-      for key, values in price_data.items():
-        countries_in_group = values.split(",")
-        if code in countries_in_group:
-          return key
-      return None
-
-    key = extract_key_from_code(price_data, country_code)
-    if key is not None:
-      return key
-
-    # Country not found. Check for "rest of the world":
-    key = extract_key_from_code(price_data, rest_of_the_world_string)
-    if key is not None:
-      return key
-
-    # Trouble. Abort.
-    print(price_data, file=sys.stderr)
-    raise KeyError('Price index not found for country "{}" or for the rest of the world).'.format(country_code))
-
-
-  # The second step to get the current price for the game is to look for it
-  # within the currency data.
   # It is possible that a game costs X USD in one country and Y USD in another.
   # Once we know which number groups our country integrates, we'll look only at
   # them.
@@ -373,12 +340,12 @@ groups where it belongs. The title is used only for error messages."
   def get_price_value(price_data):
     "From the GOG price data structure, extract only the prices matching the \
 globally defined country and currency. Returns the tuple (discounted, full)."
-    index = get_country_groups(price_data["countriesGroups"])
-    currency_values = price_data["groupsPrices"]
-    try:
-      values = currency_values[currency_code][str(index)].split(";")
-      return float(values[0]), float(values[1])
-    except KeyError:
+    groups_using_currency = price_data["groupsPrices"][currency_code]
+    for code in groups_using_currency:
+      if country_code in price_data["countriesGroups"][code]:
+        values = price_data["groupsPrices"][currency_code][code].split(";")
+        return float(values[0]), float(values[1])
+    else:
       print("country group index: {}, currency_values: {}".format(index, currency_values), price_data, sep="\n", file=sys.stderr)
       raise KeyError('Price value not found for country "{}"' \
                        ' (or rest of the world) and currency {}. Keys seen: {}'.format(
@@ -400,7 +367,7 @@ globally defined country and currency. Returns the tuple (discounted, full)."
     local_discount_price = local_full_price = 0
     for product_id in data["bundle"][productIds]:
       prod_id_in_bundle = str(product_id)
-      prod_local_discount_price, prod_local_full_price = get_price_value(data["bundle"]["prices"][prod_id_in_bundle])
+      prod_local_full_price, prod_local_discount_price = get_price_value(data["bundle"]["prices"][prod_id_in_bundle])
       local_discount_price += prod_local_discount_price
       local_full_price += prod_local_full_price
     game_id = 0
@@ -408,7 +375,7 @@ globally defined country and currency. Returns the tuple (discounted, full)."
     game_image = data["bundle"]["image"],
   elif data["dealType"] == "product":
     game_title = data["product"]["url"].split("/")[-1].replace("_", " ")
-    local_discount_price, local_full_price = get_price_value(data["product"]["prices"])
+    local_full_price, local_discount_price = get_price_value(data["product"]["prices"])
     game_id = int(data["product"]["id"]),
     game_url = url_format.format(data["product"]["url"]),
     game_image = data["product"]["image"],
