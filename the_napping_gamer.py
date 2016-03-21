@@ -246,7 +246,7 @@ def provide_notification(game_info):
 
     if espeak_system:
       try:
-        subprocess.call([espeak_system, game_info["title"]],
+        subprocess.call([espeak_system, game_info["title"]])
       except FileNotFoundError:
         print("ERROR: Could not find espeak program: ", espeak_system, file=sys.stderr)
 
