@@ -184,7 +184,11 @@ def provide_notification(game_info):
 
 
   # Before bothering the user, see if the game is worthwhile.
-  if not game_is_relevant(game_info):
+  wishlist_entry = game_relevance(game_info)
+  # game_relevance outputs: True -> No Wishlist; False -> Irrelevant; string -> wishlist entry.
+  if wishlist_entry and wishlist_entry is not True:
+    print(' (Match found for "{}")'.format(wishlist_entry))
+  elif wishlist_entry is False:
     return
 
 
@@ -233,7 +237,6 @@ def provide_notification(game_info):
 
 
 
-
   elif sys.platform.startswith('win32') or sys.platform.startswith('cygwin'):
     if sound_notify:
       import winsound
@@ -251,13 +254,14 @@ def provide_notification(game_info):
         print("ERROR: Could not find espeak program: ", espeak_system, file=sys.stderr)
 
 
+
 # Check to see if the game fits the price and if the name is in the wishlist.
 # If the wishlist file is not present, assume that the user wants to see all
 # games being offered.
 # The list is checked at each run (that is, when something new appears). That
 # way the list can be changed without the program being restarted.
 
-def game_is_relevant(game_info):
+def game_relevance(game_info):
   "Verify that the game meets the price criteria and if it is found in the \
 wishlist. If there is no wishlist file, all games are relevant. \
 Otherwise, check line in the wishlist file for a (case insensitive) substring \
@@ -270,7 +274,7 @@ of the current game title."
       for entry in wishlist:
         cleaned_entry = entry.strip().lower()
         if cleaned_entry != "" and cleaned_entry in game_info["title"].lower():
-          return True
+          return entry.strip()
       else:
         return False
   except FileNotFoundError:
