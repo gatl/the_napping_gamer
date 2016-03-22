@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2015 Gustavo Laboreiro
+# Copyright 2015, 2016 Gustavo Laboreiro
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -81,6 +81,9 @@ country_code = 'PT'
 # The list will have one game per line, and is case insensitive.
 # This is not a regular expression. We do a substring matching.
 # Tell the script the name of the file here.
+#
+# The script will look for this file in your working directory.
+# You can set it with a full path if you like.
 
 wishlist_file = "wishlist.txt"
 
@@ -366,8 +369,10 @@ globally defined country and currency. Returns the tuple (discounted, full)."
 
   url_format = "https://www.gog.com/{}"
 
+  # We have two types of offers: bunles (multiple games) and products (single games).
+
   if data["dealType"] == "bundle":
-    game_title = data["bundle"]["title"]
+    game_title = "{} ({})".format(data["bundle"]["title"], data["bundle"]["description"])
     local_discount_price = local_full_price = 0
     for product_id in data["bundle"]["productIds"]:
       prod_id_in_bundle = str(product_id)
@@ -377,12 +382,14 @@ globally defined country and currency. Returns the tuple (discounted, full)."
     game_id = 0
     game_url = "https://www.gog.com/"
     game_image = data["bundle"]["image"],
+
   elif data["dealType"] == "product":
-    game_title = data["product"]["url"].split("/")[-1].replace("_", " ")
+    game_title = data["product"]["title"]
     local_full_price, local_discount_price = get_price_value(data["product"]["prices"])
     game_id = int(data["product"]["id"]),
     game_url = url_format.format(data["product"]["url"]),
     game_image = data["product"]["image"],
+
   else:
     raise ValueError("Unknown deal type: {}.".format(data["dealType"]))
   return [{
